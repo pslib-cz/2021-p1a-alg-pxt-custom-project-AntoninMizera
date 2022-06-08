@@ -1,0 +1,27 @@
+{
+    "name": "Untitled",
+    "description": "",
+    "dependencies": {
+        "core": "*",
+        "radio": "*",
+        "microphone": "*",
+        "neopixel": "github:microsoft/pxt-neopixel#v0.7.3",
+        "DS3231": "github:alexandrefrolov/ds3231#c1051c99372995777507ea01e1ed150e609d4337",
+        "pxt-magicbit-pca9685": "github:antoninmizera/pxt-magicbit-pca9685#c72912adc89c2378c6b40a69e5b6a51433b30979"
+    },
+    "files": [
+        "src/main.ts",
+        "src/pins.ts",
+        "src/util.ts"
+    ],
+    "testFiles": [],
+    "targetVersions": {
+        "target": "4.0.18",
+        "targetId": "microbit"
+    },
+    "supportedTargets": [
+        "microbit"
+    ],
+    "preferredEditor": "tsprj",
+    "languageRestriction": "javascript-only"
+}
