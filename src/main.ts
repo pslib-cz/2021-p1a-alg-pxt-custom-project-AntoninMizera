@@ -16,18 +16,12 @@ let lastSecs = 0;
 innerRing.setBrightness(127);
 outerRing.setBrightness(127);
 
-const buf = pins.createBuffer(2);
-buf.setNumber(NumberFormat.UInt8BE, 0, 0b11001100);
-buf.setNumber(NumberFormat.UInt8LE, 1, 0b11001100);
 
 console.log(`${DS3231.dateString()} ${DS3231.timeString()}`);
-console.log(`${buf[0]} ${buf[1]}`);
 
 // Reset clock hand position
 console.log("Initial clock reset...");
-// clock.reset();
 clock.reset();
-// pca9685.fixUpClockHead(PCA9685Steppers.STPM2);
 rdy = true;
 
 
@@ -166,5 +160,3 @@ function switchMode() {
 
     if (!clockMode) running = true;
 }
-
-// PCAmotor.StepperDegree(PCAmotor.Steppers.STPM1, rtc.getSeconds() * ANGLE_PER_SECOND);
