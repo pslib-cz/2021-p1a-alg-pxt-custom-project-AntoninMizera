@@ -66,6 +66,17 @@ namespace clock {
 
         if (pins.digitalReadPin(PIN_IR_SENSOR)) fixUpClockHead();
     }
+
+    /**
+     * Compares two second values and returns the time delta
+     */
+    export function calculateClockGap(before: number, after: number): number {
+        if (before > after) {
+            return after - before + 60;
+        } else {
+            return after - before;
+        }
+    }
 }
 
 

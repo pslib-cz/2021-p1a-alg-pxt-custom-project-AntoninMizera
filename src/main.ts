@@ -78,7 +78,10 @@ basic.forever(() => {
                 
             }
 
-            PCAmotor.StepperDegree(PIN_STEPPER_MOTOR, clockSpeed);
+            const secondDelta = clock.calculateClockGap(lastSecs, secs);
+            console.log(secondDelta);
+
+            PCAmotor.StepperDegree(PIN_STEPPER_MOTOR, secondDelta * clockSpeed);
         }
     } else {
         if (!stopwatchStart) {
