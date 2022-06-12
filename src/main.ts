@@ -13,6 +13,14 @@ let clockSpeed = 6.125;
 let clockInit = 0;
 let lastSecs = 0;
 
+let settingsMode = false;
+let changingMinutes = false;
+let blink = true;
+
+let settingsModeButtonInit = 0;
+let newHours = 0;
+let newMins = 0;
+
 innerRing.setBrightness(127);
 outerRing.setBrightness(127);
 
@@ -29,118 +37,138 @@ basic.forever(() => {
     const t1 = control.millis();
     innerRing.clear();
     outerRing.clear();
-    
+
     const mins = DS3231.minutes();
     const hours = DS3231.hours();
     const secs = DS3231.seconds();
 
-    if (clockMode) {
-        console.log(DS3231.timeString());
-
-        const numMinLeds = (hours < 12 ? hours : hours - 12) * 2 + (mins > 30 ? 1 : 0);
-        
-        neopixel.setRangeColor(innerRing, numMinLeds + 1, COLOR_HOURS);
-        neopixel.setRangeColor(outerRing, Math.min(mins, 60) + 1, COLOR_MINUTES);
-
-        if (!running) {
-            if (secs === 0) {
-                running = true;
-            }
-            clockInit = control.millis();
-            lastSecs = secs;
-            
-            const t2 = control.millis();
-            basic.pause(1000 - (t2 - t1));
-            return;
+    if (settingsMode) {
+        if (changingMinutes) {
+            neopixel.setRangeColor(innerRing, newHours + 1, COLOR_HOURS);
+            if (blink) neopixel.setRangeColor(outerRing, newMins + 1, COLOR_MINUTES);
+        } else {
+            neopixel.setRangeColor(outerRing, newMins + 1, COLOR_MINUTES);
+            if (blink) neopixel.setRangeColor(innerRing, newHours + 1, COLOR_HOURS);
         }
 
-        if (running) {
-            const now = control.millis();
-            const delta = now - clockInit;
-
-            if (!pins.digitalReadPin(PIN_IR_SENSOR) && delta > 5000) {
-                if (secs !== 0) {
-                    running = false;
-                }
-
-                console.log(`It took ${delta} ms for a whole turn`);
-                console.log(`Will be running next cycle? ${running}`);
-                
-                const clockRatio = (now - clockInit) / 60000;
-                clockInit = now;
-                if (clockRatio < 0.95 || clockRatio > 1.05) {
-                    
-                    clockSpeed *= clockRatio;
-                    console.log(`New clock movement speed: ${clockSpeed}`);
-                    
-                    if (secs !== 0) {
-                        clock.fixUpClockHead();
-                        running = false;
-                        return;
-                    }
-                }
-
-                
-            }
-
-            const secondDelta = clock.calculateClockGap(lastSecs, secs);
-            console.log(secondDelta);
-
-            PCAmotor.StepperDegree(PIN_STEPPER_MOTOR, secondDelta * clockSpeed);
-        }
+        blink = !blink;
     } else {
-        if (!stopwatchStart) {
-            stopwatchStart = control.millis();
-        }
-        if (!running) {
-            console.log("Not running, pausing for 10 seconds and switching back to clock mode...");
+        if (clockMode) {
+            console.log(DS3231.timeString());
 
-            // Disable LEDs
-            innerRing.show();
-            outerRing.show();
+            const numMinLeds = (hours < 12 ? hours : hours - 12) * 2 + (mins > 30 ? 1 : 0);
 
-            basic.pause(10000);
-            switchMode();
-            return;
-        }
+            neopixel.setRangeColor(innerRing, numMinLeds + 1, COLOR_HOURS);
+            neopixel.setRangeColor(outerRing, Math.min(mins, 60) + 1, COLOR_MINUTES);
 
-        const currentMs = control.millis();
-        const msLeds = Math.floor((
-            ((currentMs - stopwatchStart) % 1000) / 1000) // converts milliseconds into fractional seconds (effectively turning into a percentage)
-            * 60                                          // which are multiplied by 60 to get the result
-        );
+            if (!running) {
+                if (secs === 0) {
+                    running = true;
+                }
+                clockInit = control.millis();
+                lastSecs = secs;
 
-        const segments = (currentMs - stopwatchStart) % 12000;
-        const secondLeds = Math.floor(segments / 500);
+                const t2 = control.millis();
+                basic.pause(1000 - (t2 - t1));
+                return;
+            }
 
-        neopixel.setRangeColor(outerRing, msLeds + 1, COLOR_MINUTES);
-        neopixel.setRangeColor(innerRing, secondLeds + 1, COLOR_HOURS);
+            if (running) {
+                const now = control.millis();
+                const delta = now - clockInit;
 
-        const lastSegmentAmount = Math.floor((currentMs - stopwatchStart) / 12000);
-        if (lastSegmentAmount > stopwatchModeLastSegmentAmount) {
-            console.log(`${lastSegmentAmount} ${stopwatchModeLastSegmentAmount}`);
-            control.inBackground(() => PCAmotor.StepperDegree(PIN_STEPPER_MOTOR, (360 / 60) * 5));
-        }
+                if (!pins.digitalReadPin(PIN_IR_SENSOR) && delta > 5000) {
+                    if (secs !== 0) {
+                        running = false;
+                    }
 
-        stopwatchModeLastSegmentAmount = lastSegmentAmount;
+                    console.log(`It took ${delta} ms for a whole turn`);
+                    console.log(`Will be running next cycle? ${running}`);
 
-        if (stopwatchModeLastSegmentAmount > 2) {
-            running = !!pins.digitalReadPin(PIN_IR_SENSOR);
+                    const clockRatio = (now - clockInit) / 60000;
+                    clockInit = now;
+                    if (clockRatio < 0.95 || clockRatio > 1.05) {
 
-            // console.log("running: " + running);
+                        clockSpeed *= clockRatio;
+                        console.log(`New clock movement speed: ${clockSpeed}`);
+
+                        if (secs !== 0) {
+                            clock.fixUpClockHead();
+                            running = false;
+                            return;
+                        }
+                    }
+
+
+                }
+
+                const secondDelta = clock.calculateClockGap(lastSecs, secs);
+                console.log(secondDelta);
+
+                PCAmotor.StepperDegree(PIN_STEPPER_MOTOR, secondDelta * clockSpeed);
+            }
+        } else {
+            if (!stopwatchStart) {
+                stopwatchStart = control.millis();
+            }
+            if (!running) {
+                console.log("Not running, pausing for 10 seconds and switching back to clock mode...");
+
+                // Disable LEDs
+                innerRing.show();
+                outerRing.show();
+
+                basic.pause(10000);
+                switchMode();
+                return;
+            }
+
+            const currentMs = control.millis();
+            const msLeds = Math.floor((
+                ((currentMs - stopwatchStart) % 1000) / 1000) // converts milliseconds into fractional seconds (effectively turning into a percentage)
+                * 60                                          // which are multiplied by 60 to get the result
+            );
+
+            const segments = (currentMs - stopwatchStart) % 12000;
+            const secondLeds = Math.floor(segments / 500);
+
+            neopixel.setRangeColor(outerRing, msLeds + 1, COLOR_MINUTES);
+            neopixel.setRangeColor(innerRing, secondLeds + 1, COLOR_HOURS);
+
+            const lastSegmentAmount = Math.floor((currentMs - stopwatchStart) / 12000);
+            if (lastSegmentAmount > stopwatchModeLastSegmentAmount) {
+                console.log(`${lastSegmentAmount} ${stopwatchModeLastSegmentAmount}`);
+                control.inBackground(() => PCAmotor.StepperDegree(PIN_STEPPER_MOTOR, (360 / 60) * 5));
+            }
+
+            stopwatchModeLastSegmentAmount = lastSegmentAmount;
+
+            if (stopwatchModeLastSegmentAmount > 2) {
+                running = !!pins.digitalReadPin(PIN_IR_SENSOR);
+
+                // console.log("running: " + running);
+            }
         }
     }
+
+
 
     innerRing.show();
     outerRing.show();
 
     if (clockMode) {
         lastSecs = secs;
-        const t2 = control.millis();
-        basic.pause(1000 - (t2 - t1));
     }
-    
-})
+
+    if (clockMode || settingsMode) {
+        const t2 = control.millis();
+        if (clockMode)
+            basic.pause(1000 - (t2 - t1));
+        else
+            basic.pause(500 - (t2 - t1));
+    }
+
+});
 
 
 input.onButtonPressed(Button.A, () => {
@@ -156,8 +184,59 @@ input.onButtonPressed(Button.AB, () => {
 });
 
 pins.onPulsed(PIN_BUTTON_FIRST, PulseValue.Low, () => {
-    switchMode();
-    console.log(`New clock mode: ${clockMode ? "clock" : "stopwatch"}`);
+    if (!settingsMode) {
+        switchMode();
+        console.log(`New clock mode: ${clockMode ? "clock" : "stopwatch"}`);
+    } else {
+        if (changingMinutes) {
+            newMins = Math.constrain(newMins + 1, 0, 59);
+        } else {
+            newHours = Math.constrain(newHours + 1, 0, 23);
+        }
+
+        console.log(`${newHours}:${newMins}`);
+    }
+});
+
+pins.onPulsed(PIN_BUTTON_SECOND, PulseValue.Low, () => {
+    if (settingsMode) {
+        if (changingMinutes) {
+            newMins = Math.constrain(newMins - 1, 0, 59);
+        } else {
+            newHours = Math.constrain(newHours - 1, 0, 23);
+        }
+
+        console.log(`${newHours}:${newMins}`);
+    }
+});
+
+pins.onPulsed(PIN_BUTTON_THIRD, PulseValue.Low, () => {
+    if (!clockMode) return;
+    settingsModeButtonInit = control.millis();
+});
+
+pins.onPulsed(PIN_BUTTON_THIRD, PulseValue.High, () => {
+    if (settingsModeButtonInit === 0) return;
+
+    const delta = control.millis() - settingsModeButtonInit;
+
+    console.log(`Button pulse delta: ${delta}`);
+
+    if (settingsMode && delta < 1000) {
+        changingMinutes = !changingMinutes;
+    } else if (delta > 2000) {
+        settingsMode = !settingsMode;
+
+        if (settingsMode) {
+            newHours = DS3231.hours();
+            newMins = DS3231.minutes();
+        }
+
+        running = false;
+        clock.reset();
+    }
+
+    settingsModeButtonInit = 0;
 });
 
 
