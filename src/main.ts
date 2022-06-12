@@ -43,7 +43,9 @@ basic.forever(() => {
         neopixel.setRangeColor(outerRing, Math.min(mins, 60) + 1, COLOR_MINUTES);
 
         if (!running) {
-            running = secs === 0;
+            if (secs === 0) {
+                running = true;
+            }
             clockInit = control.millis();
             lastSecs = secs;
             
@@ -57,9 +59,12 @@ basic.forever(() => {
             const delta = now - clockInit;
 
             if (!pins.digitalReadPin(PIN_IR_SENSOR) && delta > 5000) {
-                running = secs !== 0; // if reached 0 secs, yay, we can game!
+                if (secs !== 0) {
+                    running = false;
+                }
 
                 console.log(`It took ${delta} ms for a whole turn`);
+                console.log(`Will be running next cycle? ${running}`);
                 
                 const clockRatio = (now - clockInit) / 60000;
                 clockInit = now;
