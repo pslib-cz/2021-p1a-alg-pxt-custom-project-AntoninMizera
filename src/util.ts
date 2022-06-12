@@ -27,6 +27,8 @@ namespace clock {
             PCAmotor.StepperDegree(PIN_STEPPER_MOTOR, -2);
             stepsBackward++;
 
+            basic.pause(50);
+
             const pinVal = pins.digitalReadPin(PIN_IR_SENSOR);
             
             if (!pinVal) {
@@ -45,6 +47,7 @@ namespace clock {
         while (true) {
             PCAmotor.StepperDegree(PIN_STEPPER_MOTOR, 2);
             stepsForward++;
+            basic.pause(50);
 
             const pinVal = pins.digitalReadPin(PIN_IR_SENSOR);
 
@@ -63,7 +66,8 @@ namespace clock {
         for (let i = 0; i < Math.floor((stepsBackward + stepsForward) / 2); i++) {
             PCAmotor.StepperDegree(PIN_STEPPER_MOTOR, -2);
         }
-
+        
+        basic.pause(50);
         if (pins.digitalReadPin(PIN_IR_SENSOR)) fixUpClockHead();
     }
 
