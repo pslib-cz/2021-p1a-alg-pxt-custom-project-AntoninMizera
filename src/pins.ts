@@ -22,6 +22,18 @@ const PIN_RING_OUTER = DigitalPin.P15;
 const PIN_STEPPER_MOTOR = PCAmotor.Steppers.STPM2;
 
 /**
+ * Whether to enable the square wave generator or not
+ * Recommended to enable as it helps the micro:bit
+ * to decide when to enable and rotate the motor.
+ */
+const ENABLE_SQW = true;
+
+/**
+ * The SQW pin of DS3231's square wave generator
+ */
+const PIN_SQW = DigitalPin.P1;
+
+/**
  * Sets the color for the rings - COLOR_HOURS is used in the inner ring,
  * COLOR_MINUTES is used in the outer ring
  */

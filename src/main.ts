@@ -9,7 +9,8 @@ let rdy = false;
 
 let stopwatchModeLastSegmentAmount = 0;
 
-let clockSpeed = 6.125;
+//let clockSpeed = 6.125;
+let clockSpeed = 360 / 60;
 let clockInit = 0;
 let lastSecs = 0;
 
@@ -26,6 +27,29 @@ outerRing.setBrightness(127);
 
 
 console.log(`${DS3231.dateString()} ${DS3231.timeString()}`);
+
+if (ENABLE_SQW) {
+    // A little bit of cheating - this will enable a 1Hz pulse generator on DS3231
+    DS3231.setStatus(DS3231.status()
+        & 0b11110111 // This should disable the 32KHz clock pin
+    );
+
+    DS3231.setControl(DS3231.control()
+        & 0b11100011 // This sets RS2, RS1, and INTCN control bits to 0, enabling the pulse generator
+    );
+
+    if ((DS3231.status() & 0b10000000) === 0b10000000) {
+        console.log("the oscillator is disabled :(");
+    } else {
+        console.log("the oscillator is enabled :)");
+
+        if ((DS3231.control() & 0b00011000) === 0) {
+            console.log("SQW should be 1Hz");
+        }
+    }
+} else {
+    console.log("SQW is not enabled");
+}
 
 // Reset clock hand position
 console.log("Initial clock reset...");
@@ -61,11 +85,11 @@ basic.forever(() => {
             neopixel.setRangeColor(innerRing, numMinLeds + 1, COLOR_HOURS);
             neopixel.setRangeColor(outerRing, Math.min(mins, 60) + 1, COLOR_MINUTES);
 
-            if (!running) {
+            if (!ENABLE_SQW && !running) {
                 if (secs === 0) {
                     running = true;
+                    clockInit = control.millis();
                 }
-                clockInit = control.millis();
                 lastSecs = secs;
 
                 const t2 = control.millis();
@@ -82,12 +106,12 @@ basic.forever(() => {
                         running = false;
                     }
 
-                    console.log(`It took ${delta} ms for a whole turn`);
+                    console.log(`It took ${delta} ms for a whole turn (speed: ${clockSpeed})`);
                     console.log(`Will be running next cycle? ${running}`);
 
                     const clockRatio = (now - clockInit) / 60000;
                     clockInit = now;
-                    if (clockRatio < 0.95 || clockRatio > 1.05) {
+                    if (clockRatio < 0.975 || clockRatio > 1.025) {
 
                         clockSpeed *= clockRatio;
                         console.log(`New clock movement speed: ${clockSpeed}`);
@@ -105,7 +129,8 @@ basic.forever(() => {
                 const secondDelta = clock.calculateClockGap(lastSecs, secs);
                 console.log(secondDelta);
 
-                PCAmotor.StepperDegree(PIN_STEPPER_MOTOR, secondDelta * clockSpeed);
+                if (!ENABLE_SQW)
+                    PCAmotor.StepperDegree(PIN_STEPPER_MOTOR, secondDelta * clockSpeed);
             }
         } else {
             if (!stopwatchStart) {
@@ -162,7 +187,7 @@ basic.forever(() => {
 
     if (clockMode || settingsMode) {
         const t2 = control.millis();
-        if (clockMode)
+        if (!settingsMode)
             basic.pause(1000 - (t2 - t1));
         else
             basic.pause(500 - (t2 - t1));
@@ -194,6 +219,8 @@ pins.onPulsed(PIN_BUTTON_FIRST, PulseValue.Low, () => {
             newHours = Math.constrain(newHours + 1, 0, 23);
         }
 
+        blink = true;
+
         console.log(`${newHours}:${newMins}`);
     }
 });
@@ -205,6 +232,8 @@ pins.onPulsed(PIN_BUTTON_SECOND, PulseValue.Low, () => {
         } else {
             newHours = Math.constrain(newHours - 1, 0, 23);
         }
+
+        blink = true;
 
         console.log(`${newHours}:${newMins}`);
     }
@@ -224,12 +253,17 @@ pins.onPulsed(PIN_BUTTON_THIRD, PulseValue.High, () => {
 
     if (settingsMode && delta < 1000) {
         changingMinutes = !changingMinutes;
-    } else if (delta > 2000) {
+        blink = true;
+    } else if (delta > 1000) {
         settingsMode = !settingsMode;
+        console.log(`Switching ${settingsMode ? "to" : "from"} setting mode`);
 
         if (settingsMode) {
             newHours = DS3231.hours();
             newMins = DS3231.minutes();
+        } else {
+            // Write new settings back
+            DS3231.setTime(newHours, newMins, 0);
         }
 
         running = false;
@@ -239,6 +273,20 @@ pins.onPulsed(PIN_BUTTON_THIRD, PulseValue.High, () => {
     settingsModeButtonInit = 0;
 });
 
+if (ENABLE_SQW) {
+    pins.onPulsed(PIN_SQW, PulseValue.Low, () => {
+        console.log("tick");
+        if (!running && DS3231.seconds() === 0) {
+            console.log("Enabling the motor!");
+            running = true;
+            clockInit = control.millis();
+            lastSecs = 0;
+        }
+        if (running) {
+            PCAmotor.StepperDegree(PCAmotor.Steppers.STPM2, clockSpeed);
+        }
+    });
+}
 
 function switchMode() {
     clock.reset();
