@@ -2,12 +2,13 @@ const innerRing = neopixel.create(PIN_RING_INNER, 24, NeoPixelMode.RGB);
 const outerRing = neopixel.create(PIN_RING_OUTER, 60, NeoPixelMode.RGB);
 
 let clockMode = true;
-let stopwatchStart = 0;
-
 let running = false;
 let rdy = false;
 
+let stopwatchStart = 0;
 let stopwatchModeLastSegmentAmount = 0;
+let stopwatchPause = false;
+let stopwatchPauseInit = 0;
 
 //let clockSpeed = 6.125;
 let clockSpeed = 360 / 60;
@@ -148,7 +149,7 @@ basic.forever(() => {
                 return;
             }
 
-            const currentMs = control.millis();
+            const currentMs = stopwatchPause ? stopwatchPauseInit : control.millis();
             const msLeds = Math.floor((
                 ((currentMs - stopwatchStart) % 1000) / 1000) // converts milliseconds into fractional seconds (effectively turning into a percentage)
                 * 60                                          // which are multiplied by 60 to get the result
@@ -240,7 +241,6 @@ pins.onPulsed(PIN_BUTTON_SECOND, PulseValue.Low, () => {
 });
 
 pins.onPulsed(PIN_BUTTON_THIRD, PulseValue.Low, () => {
-    if (!clockMode) return;
     settingsModeButtonInit = control.millis();
 });
 
@@ -251,9 +251,21 @@ pins.onPulsed(PIN_BUTTON_THIRD, PulseValue.High, () => {
 
     console.log(`Button pulse delta: ${delta}`);
 
-    if (settingsMode && delta < 1000) {
-        changingMinutes = !changingMinutes;
-        blink = true;
+    if (delta < 1000) {
+        if (settingsMode) {
+            changingMinutes = !changingMinutes;
+            blink = true;
+        } else if (!clockMode) {
+            stopwatchPause = !stopwatchPause;
+
+            if (stopwatchPause) {
+                stopwatchPauseInit = control.millis();
+            } else {
+                const diff = control.millis() - stopwatchPauseInit;
+
+                stopwatchStart += diff;
+            }
+        }
     } else if (delta > 1000) {
         settingsMode = !settingsMode;
         console.log(`Switching ${settingsMode ? "to" : "from"} setting mode`);
